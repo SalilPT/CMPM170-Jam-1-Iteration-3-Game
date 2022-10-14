@@ -60,6 +60,12 @@ class WindowToClean {
       "left": "light_purple"
     };
 
+    this.DIRT_SPRITE_POINTS = {
+      "a": 2,
+      "b": 2,
+      "c": 3
+    };
+
     /*
     Mutable Properties
     */
@@ -67,13 +73,27 @@ class WindowToClean {
     this.centerY;
     this.width;
     this.height;
+    this.dirtArray;
   }
 
-  // TODO: Fill this in
-  // Generates dirt spots
+  // Generates the specified number of dirt spots
   // Only called during level transitions
-  generateDirtSpots() {
+  generateDirtSpots(numSpots) {
+    this.dirtArray = [];
+    let minDistFromSide = 6;
+    // I don't know why, but this seems to almost never place dirt in the lower-right quadrant.
+    // TODO?: Fix this
+    for (let i = 0; i < numSpots; i++) {
+      let xCoord = rndi(this.centerX - (this.width / 2) + minDistFromSide, this.width - minDistFromSide);
+      let yCoord = rndi(this.centerY - (this.height / 2) + minDistFromSide, this.height - minDistFromSide);
+      let randomSprite = Object.keys(this.DIRT_SPRITE_POINTS)[rndi(Object.keys(this.DIRT_SPRITE_POINTS).length)];
 
+      this.dirtArray.push({
+        x: xCoord,
+        y: yCoord,
+        sprite: randomSprite
+      });
+    }
   }
 
   // Returns an array of 2 vectors representing the side bounds
@@ -146,6 +166,22 @@ class WindowToClean {
       }
     }
     color("black");
+  }
+
+  // Called by squeegee
+  updateDirtSpots() {
+    // Draw dirt
+    let dirtToRemove = [];
+    color("black");
+    for (let dirt of this.dirtArray) {
+      let dirtCollision = char(dirt.sprite, dirt.x, dirt.y);
+      if (dirtCollision.isColliding.rect[squeegee.WIPER_COLOR]) {
+        dirtToRemove.push(dirt);
+        addScore(this.DIRT_SPRITE_POINTS[dirt.sprite], dirt.x, dirt.y);
+      }
+    }
+    // Clean up any dirt that collided with the squeegee
+    remove(this.dirtArray, (d) => {return dirtToRemove.includes(d);});
   }
 }
 
@@ -259,7 +295,9 @@ class Squeegee {
       bar(this.x, this.y, this.HANDLE_LENGTH, this.HANDLE_THICKNESS, this.movVector.angle, 1);
       color(this.WIPER_COLOR);
       wiperCollision = bar(this.x, this.y, this.WIPER_LENGTH, this.WIPER_THICKNESS, this.movVector.angle + PI / 2);
-    }    
+    }
+    
+    windowToClean.updateDirtSpots();
 
     // Check if this collided with a side
     if (this.isWiping) {
@@ -325,6 +363,10 @@ class CountdownTimer {
     this.displayUIText = display;
   }
 
+  stop() {
+    this.countdownInProgress = false;
+  }
+
   update() {
     if (this.countdownInProgress) {
       this.ticksSinceTimerStart++;
@@ -364,9 +406,11 @@ class LevelManager {
     this.currLevel++;
 
     // Set a random size for the next window
-    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 40 + rndi(51), 40 + rndi(51));
+    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 50 + rndi(51), 50 + rndi(51));
 
     squeegee.resetProperties();
+
+    windowToClean.generateDirtSpots(4 + 2 * sqrt(this.currLevel));
 
     let transitionPhase1Callback = () => {
       this.inLevelTransition = false;
@@ -405,6 +449,10 @@ class LevelManager {
     }
     else if (this.showCleanText) {
       text("Clean!", this.getCenteredTextLineCoords("Clean!"), {color: "blue"});
+    }
+    else if (windowToClean.dirtArray.length == 0) {
+      timer.stop();
+      this.showCleanTextThenTransition();
     }
   }
 }
