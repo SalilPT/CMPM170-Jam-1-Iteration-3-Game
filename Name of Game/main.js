@@ -5,14 +5,39 @@ description = `
 [Hold] Wipe faster
 `;
 
-characters = []; // TODO: Make sprites for dirt spots
+characters = [
+  `
+  l l 
+l ll  
+ llll
+  llll
+ lllll
+l ll
+  `, // big splatter
+  `
+  l   
+  ll l
+ llll
+  lll
+    ll
+ l
+  `, // med splatter
+  `
+   l
+  ll
+  ll
+ l   l
+  ` // smol splatter
+
+]; // TODO: Make sprites for dirt spots
 
 // Game constants
 const G = {
   WIDTH: 120,
   HEIGHT: 120,
   // Events for classes to use
-  TIMER_FINISHED_EVENT: new Event("timerFinished")
+  TIMER_FINISHED_EVENT: new Event("timerFinished"),
+  sound: 34
 };
 
 options = {
