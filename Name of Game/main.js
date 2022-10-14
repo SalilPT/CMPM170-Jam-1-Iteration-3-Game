@@ -1,4 +1,4 @@
-title = "Name of Game";
+title = "";
 
 description = `
 [Tap] Wipe
@@ -156,6 +156,22 @@ class Squeegee {
     */
     this.DEFAULT_SIDE = "left";
     this.DEFAULT_SPEED = 1;
+    this.DEFAULT_WIPE_SPEED = 0.75;
+
+    this.MIDDLE_COLLISION_COLOR = "blue";
+    this.WIPER_COLOR = "blue";
+    this.HANDLE_COLOR = "black";
+    this.WIPER_LENGTH = 10;
+    this.WIPER_THICKNESS = 3;
+    this.HANDLE_LENGTH = 6;
+    this.HANDLE_THICKNESS = 2;
+
+    this.SIDES_TO_WIPE_VECTORS = {
+      "top": vec(0, 1),
+      "right": vec(-1, 0),
+      "bottom": vec(0, -1),
+      "left": vec(1, 0)
+    };
 
     /*
     Mutable Properties
@@ -166,17 +182,108 @@ class Squeegee {
     this.movVector; // Movement vector
     this.oscPt1; // Oscillation point 1
     this.oscPt2; // Oscillation point 2
+
+    this.currentSide;
+    this.isWiping;
+    this.wipeSpeed;
+    this.sideAtStartOfWipe;
   }
 
   resetProperties() {
     [this.oscPt1, this.oscPt2] = windowToClean.getSideBounds(this.DEFAULT_SIDE);
     // Flip order of y coordinate subtraction here because y value is 0 at top of screen
     this.movVector = vec(Math.sign(this.oscPt2.x - this.oscPt1.x), Math.sign(this.oscPt1.y - this.oscPt2.y)).mul(this.DEFAULT_SPEED);
+    this.x = abs(this.oscPt1.x + this.oscPt2.x) / 2;
+    this.y = abs(this.oscPt1.y + this.oscPt2.y) / 2;
+
+    this.currentSide = this.DEFAULT_SIDE;
+    this.isWiping = false;
+    this.wipeSpeed = this.DEFAULT_WIPE_SPEED;
+    this.sideAtStartOfWipe = this.DEFAULT_SIDE;
   }
 
   // TODO: Implement this
   update() {
+    // Update movement vector
+    if (this.isWiping && input.isPressed) {
+      this.movVector.addWithAngle(this.movVector.angle, 0.05);
+    }
+    if (this.isWiping) {
+      // Rotate the squeegee clockwise
+      this.movVector.rotate(PI / 180);
+    }
+    if (!this.isWiping && input.isJustPressed) {
+      this.isWiping = true;
+      let tempVec = vec(this.SIDES_TO_WIPE_VECTORS[this.currentSide].x, this.SIDES_TO_WIPE_VECTORS[this.currentSide].y);
+      this.movVector = tempVec.mul(this.wipeSpeed);
+    }
 
+    // Update x position
+    this.x += clamp(this.movVector.x, -windowToClean.width, windowToClean.width);
+    let rightBound = windowToClean.centerX + windowToClean.width / 2;
+    let leftBound = windowToClean.centerX - windowToClean.width / 2;
+    if (this.x >= rightBound) {
+      this.movVector.x *= -1;
+      this.x -= 2 * (this.x - rightBound);
+    }
+    else if (this.x <= leftBound) {
+      this.movVector.x *= -1;
+      this.x += 2 * (leftBound - this.x);
+    }
+
+    // Update y position
+    this.y += clamp(this.movVector.y, -windowToClean.height, windowToClean.height);
+    let bottomBound = windowToClean.centerY + windowToClean.height / 2;
+    let topBound = windowToClean.centerY - windowToClean.height / 2;
+    if (this.y >= bottomBound) {
+      this.movVector.y *= -1;
+      this.y -= 2 * (this.y - bottomBound);
+    }
+    else if (this.y <= topBound) {
+      this.movVector.y *= -1;
+      this.y += 2 * (topBound - this.y);
+    }
+
+    // Drawing
+    color(this.MIDDLE_COLLISION_COLOR);
+    let squeegeeMiddleCollision = bar(this.x, this.y, 1, 1);
+    color(this.HANDLE_COLOR);
+    let wiperCollision;
+    if (!this.isWiping) {
+      let tempVec = vec(this.SIDES_TO_WIPE_VECTORS[this.currentSide].x, this.SIDES_TO_WIPE_VECTORS[this.currentSide].y);
+      bar(this.x, this.y, this.HANDLE_LENGTH, this.HANDLE_THICKNESS, tempVec.mul(-1).angle, 0);
+      color(this.WIPER_COLOR);
+      wiperCollision = bar(this.x, this.y, this.WIPER_LENGTH, this.WIPER_THICKNESS, this.movVector.angle);
+    }
+    else {
+      bar(this.x, this.y, this.HANDLE_LENGTH, this.HANDLE_THICKNESS, this.movVector.angle, 1);
+      color(this.WIPER_COLOR);
+      wiperCollision = bar(this.x, this.y, this.WIPER_LENGTH, this.WIPER_THICKNESS, this.movVector.angle + PI / 2);
+    }    
+
+    // Check if this collided with a side
+    if (this.isWiping) {
+      for (let [side, c] of Object.entries(windowToClean.SIDES_TO_COLLSION_COLORS)) {
+        if (side != this.sideAtStartOfWipe && squeegeeMiddleCollision.isColliding.rect[c]) {
+          let [sideBound1, sideBound2] = windowToClean.getSideBounds(side);
+
+          // Snap squeegee to side
+          if (sideBound1.x == sideBound2.x) {
+            this.x = sideBound1.x;
+          }
+          else {
+            this.y = sideBound1.y;
+          }
+
+          this.movVector = vec(Math.sign(sideBound1.x - sideBound2.x), Math.sign(sideBound1.y - sideBound2.y)).mul(this.DEFAULT_SPEED);
+          this.currentSide = side;
+          this.isWiping = false;
+          this.wipeSpeed = this.DEFAULT_WIPE_SPEED;
+          this.sideAtStartOfWipe = side;
+          break;
+        }
+      }
+    }
   }
 }
 
@@ -256,9 +363,10 @@ class LevelManager {
     this.inLevelTransition = true;
     this.currLevel++;
 
-    squeegee.resetProperties();
     // Set a random size for the next window
     windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 40 + rndi(51), 40 + rndi(51));
+
+    squeegee.resetProperties();
 
     let transitionPhase1Callback = () => {
       this.inLevelTransition = false;
