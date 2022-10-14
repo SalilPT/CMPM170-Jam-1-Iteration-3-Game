@@ -114,8 +114,8 @@ class WindowToClean {
   update() {
     // Draw 2 bars from center position first
     color(this.COLOR);
-    bar(this.centerX, this.centerY, this.width, this.LINE_THICKNESS, PI/2);
-    bar(this.centerX, this.centerY, this.height, this.LINE_THICKNESS, 0);
+    bar(this.centerX, this.centerY, this.width, this.LINE_THICKNESS, 0);
+    bar(this.centerX, this.centerY, this.height, this.LINE_THICKNESS, PI / 2);
     color("black");
 
     // Draw sides
@@ -235,20 +235,93 @@ class CountdownTimer {
   }
 }
 
+// Class for a single object that will be used to control level flow
+// Heavily based off of SalilPT/CMPM170-Jam-1-Iteration-2-Game
+class LevelManager {
+  constructor() {
+    this.currLevel;
+
+    this.inLevelTransition;
+    this.showCleanText;
+  }
+
+  // Return a vector for the position the given single line of non-scaled text would need to be drawn to be centered
+  getCenteredTextLineCoords(text) {
+    let textX = 3 + (G.WIDTH - text.length * 6)/2;
+    let textY = G.HEIGHT / 2 - 3;
+    return vec(textX, textY);
+  }
+
+  playLevelTransitionSequence() {
+    this.inLevelTransition = true;
+    this.currLevel++;
+
+    squeegee.resetProperties();
+    // Set a random size for the next window
+    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 40 + rndi(51), 40 + rndi(51));
+
+    let transitionPhase1Callback = () => {
+      this.inLevelTransition = false;
+
+      removeEventListener("timerFinished", transitionPhase1Callback);
+    }
+
+    timer.startCountdown(1.5);
+    addEventListener("timerFinished", transitionPhase1Callback);
+  }
+
+  showCleanTextThenTransition() {
+    this.showCleanText = true;
+
+    let cleanTextFinishedCallback = () => {
+      this.showCleanText = false;
+      this.playLevelTransitionSequence();
+
+      removeEventListener("timerFinished", cleanTextFinishedCallback);
+    }
+
+    timer.startCountdown(1);
+    addEventListener("timerFinished", cleanTextFinishedCallback);
+  }
+
+  resetProperties() {
+    this.currLevel = 0;
+    this.inLevelTransition = false;
+    this.showCleanText = false;
+  }
+
+  update() {
+    if (this.inLevelTransition) {
+      let levelText = "Level " + this.currLevel;
+      text(levelText, this.getCenteredTextLineCoords(levelText));
+    }
+    else if (this.showCleanText) {
+      text("Clean!", this.getCenteredTextLineCoords("Clean!"), {color: "blue"});
+    }
+  }
+}
+
 let windowToClean = new WindowToClean();
 let squeegee = new Squeegee();
 let timer = new CountdownTimer();
+let levelMgr = new LevelManager();
 
 function update() {
   if (!ticks) {
     windowToClean.setProperties(G.WIDTH/2, G.HEIGHT/2, 60, 60);
     squeegee.resetProperties();
     timer.resetProperties();
+    levelMgr.resetProperties();
+
+    levelMgr.playLevelTransitionSequence();
   }
 
-  windowToClean.update();
-  squeegee.update();
+  if (!levelMgr.inLevelTransition) {
+    windowToClean.update();
+    squeegee.update();
+  }
   timer.update();
+  levelMgr.update();
 }
 
 addEventListener("load", onLoad);
