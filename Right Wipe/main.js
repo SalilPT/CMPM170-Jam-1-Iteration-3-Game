@@ -1,4 +1,4 @@
-title = "";
+title = "Right Wipe";
 
 description = `
 [Tap] Wipe
