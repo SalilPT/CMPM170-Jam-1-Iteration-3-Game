@@ -1,4 +1,4 @@
-title = "Name of Game";
+title = "Right Wipe";
 
 description = `
 [Tap] Wipe
@@ -60,6 +60,12 @@ class WindowToClean {
       "left": "light_purple"
     };
 
+    this.DIRT_SPRITE_POINTS = {
+      "a": 2,
+      "b": 2,
+      "c": 3
+    };
+
     /*
     Mutable Properties
     */
@@ -67,13 +73,27 @@ class WindowToClean {
     this.centerY;
     this.width;
     this.height;
+    this.dirtArray;
   }
 
-  // TODO: Fill this in
-  // Generates dirt spots
+  // Generates the specified number of dirt spots
   // Only called during level transitions
-  generateDirtSpots() {
+  generateDirtSpots(numSpots) {
+    this.dirtArray = [];
+    let minDistFromSide = 6;
+    // I don't know why, but this seems to almost never place dirt in the lower-right quadrant.
+    // TODO?: Fix this
+    for (let i = 0; i < numSpots; i++) {
+      let xCoord = rndi(this.centerX - (this.width / 2) + minDistFromSide, this.width - minDistFromSide);
+      let yCoord = rndi(this.centerY - (this.height / 2) + minDistFromSide, this.height - minDistFromSide);
+      let randomSprite = Object.keys(this.DIRT_SPRITE_POINTS)[rndi(Object.keys(this.DIRT_SPRITE_POINTS).length)];
 
+      this.dirtArray.push({
+        x: xCoord,
+        y: yCoord,
+        sprite: randomSprite
+      });
+    }
   }
 
   // Returns an array of 2 vectors representing the side bounds
@@ -147,6 +167,22 @@ class WindowToClean {
     }
     color("black");
   }
+
+  // Called by squeegee
+  updateDirtSpots() {
+    // Draw dirt
+    let dirtToRemove = [];
+    color("black");
+    for (let dirt of this.dirtArray) {
+      let dirtCollision = char(dirt.sprite, dirt.x, dirt.y);
+      if (dirtCollision.isColliding.rect[squeegee.WIPER_COLOR]) {
+        dirtToRemove.push(dirt);
+        addScore(this.DIRT_SPRITE_POINTS[dirt.sprite], dirt.x, dirt.y);
+      }
+    }
+    // Clean up any dirt that collided with the squeegee
+    remove(this.dirtArray, (d) => {return dirtToRemove.includes(d);});
+  }
 }
 
 class Squeegee {
@@ -156,6 +192,22 @@ class Squeegee {
     */
     this.DEFAULT_SIDE = "left";
     this.DEFAULT_SPEED = 1;
+    this.DEFAULT_WIPE_SPEED = 0.75;
+
+    this.MIDDLE_COLLISION_COLOR = "blue";
+    this.WIPER_COLOR = "blue";
+    this.HANDLE_COLOR = "black";
+    this.WIPER_LENGTH = 10;
+    this.WIPER_THICKNESS = 3;
+    this.HANDLE_LENGTH = 6;
+    this.HANDLE_THICKNESS = 2;
+
+    this.SIDES_TO_WIPE_VECTORS = {
+      "top": vec(0, 1),
+      "right": vec(-1, 0),
+      "bottom": vec(0, -1),
+      "left": vec(1, 0)
+    };
 
     /*
     Mutable Properties
@@ -166,17 +218,110 @@ class Squeegee {
     this.movVector; // Movement vector
     this.oscPt1; // Oscillation point 1
     this.oscPt2; // Oscillation point 2
+
+    this.currentSide;
+    this.isWiping;
+    this.wipeSpeed;
+    this.sideAtStartOfWipe;
   }
 
   resetProperties() {
     [this.oscPt1, this.oscPt2] = windowToClean.getSideBounds(this.DEFAULT_SIDE);
     // Flip order of y coordinate subtraction here because y value is 0 at top of screen
     this.movVector = vec(Math.sign(this.oscPt2.x - this.oscPt1.x), Math.sign(this.oscPt1.y - this.oscPt2.y)).mul(this.DEFAULT_SPEED);
+    this.x = abs(this.oscPt1.x + this.oscPt2.x) / 2;
+    this.y = abs(this.oscPt1.y + this.oscPt2.y) / 2;
+
+    this.currentSide = this.DEFAULT_SIDE;
+    this.isWiping = false;
+    this.wipeSpeed = this.DEFAULT_WIPE_SPEED;
+    this.sideAtStartOfWipe = this.DEFAULT_SIDE;
   }
 
   // TODO: Implement this
   update() {
+    // Update movement vector
+    if (this.isWiping && input.isPressed) {
+      this.movVector.addWithAngle(this.movVector.angle, 0.05);
+    }
+    if (this.isWiping) {
+      // Rotate the squeegee clockwise
+      this.movVector.rotate(PI / 180);
+    }
+    if (!this.isWiping && input.isJustPressed) {
+      this.isWiping = true;
+      let tempVec = vec(this.SIDES_TO_WIPE_VECTORS[this.currentSide].x, this.SIDES_TO_WIPE_VECTORS[this.currentSide].y);
+      this.movVector = tempVec.mul(this.wipeSpeed);
+    }
 
+    // Update x position
+    this.x += clamp(this.movVector.x, -windowToClean.width, windowToClean.width);
+    let rightBound = windowToClean.centerX + windowToClean.width / 2;
+    let leftBound = windowToClean.centerX - windowToClean.width / 2;
+    if (this.x >= rightBound) {
+      this.movVector.x *= -1;
+      this.x -= 2 * (this.x - rightBound);
+    }
+    else if (this.x <= leftBound) {
+      this.movVector.x *= -1;
+      this.x += 2 * (leftBound - this.x);
+    }
+
+    // Update y position
+    this.y += clamp(this.movVector.y, -windowToClean.height, windowToClean.height);
+    let bottomBound = windowToClean.centerY + windowToClean.height / 2;
+    let topBound = windowToClean.centerY - windowToClean.height / 2;
+    if (this.y >= bottomBound) {
+      this.movVector.y *= -1;
+      this.y -= 2 * (this.y - bottomBound);
+    }
+    else if (this.y <= topBound) {
+      this.movVector.y *= -1;
+      this.y += 2 * (topBound - this.y);
+    }
+
+    // Drawing
+    color(this.MIDDLE_COLLISION_COLOR);
+    let squeegeeMiddleCollision = bar(this.x, this.y, 1, 1);
+    color(this.HANDLE_COLOR);
+    let wiperCollision;
+    if (!this.isWiping) {
+      let tempVec = vec(this.SIDES_TO_WIPE_VECTORS[this.currentSide].x, this.SIDES_TO_WIPE_VECTORS[this.currentSide].y);
+      bar(this.x, this.y, this.HANDLE_LENGTH, this.HANDLE_THICKNESS, tempVec.mul(-1).angle, 0);
+      color(this.WIPER_COLOR);
+      wiperCollision = bar(this.x, this.y, this.WIPER_LENGTH, this.WIPER_THICKNESS, this.movVector.angle);
+    }
+    else {
+      bar(this.x, this.y, this.HANDLE_LENGTH, this.HANDLE_THICKNESS, this.movVector.angle, 1);
+      color(this.WIPER_COLOR);
+      wiperCollision = bar(this.x, this.y, this.WIPER_LENGTH, this.WIPER_THICKNESS, this.movVector.angle + PI / 2);
+    }
+    
+    windowToClean.updateDirtSpots();
+
+    // Check if this collided with a side
+    if (this.isWiping) {
+      for (let [side, c] of Object.entries(windowToClean.SIDES_TO_COLLSION_COLORS)) {
+        if (side != this.sideAtStartOfWipe && squeegeeMiddleCollision.isColliding.rect[c]) {
+          let [sideBound1, sideBound2] = windowToClean.getSideBounds(side);
+
+          // Snap squeegee to side
+          if (sideBound1.x == sideBound2.x) {
+            this.x = sideBound1.x;
+          }
+          else {
+            this.y = sideBound1.y;
+          }
+
+          this.movVector = vec(Math.sign(sideBound1.x - sideBound2.x), Math.sign(sideBound1.y - sideBound2.y)).mul(this.DEFAULT_SPEED);
+          this.currentSide = side;
+          this.isWiping = false;
+          this.wipeSpeed = this.DEFAULT_WIPE_SPEED;
+          this.sideAtStartOfWipe = side;
+          break;
+        }
+      }
+    }
   }
 }
 
@@ -218,6 +363,10 @@ class CountdownTimer {
     this.displayUIText = display;
   }
 
+  stop() {
+    this.countdownInProgress = false;
+  }
+
   update() {
     if (this.countdownInProgress) {
       this.ticksSinceTimerStart++;
@@ -230,7 +379,7 @@ class CountdownTimer {
     // Draw text indicating time left
     if (this.displayUIText) {
       let secondsRemaining = floor((this.totalCountdownTicks - this.ticksSinceTimerStart) / 60);
-      text("T " + secondsRemaining, this.UI_TEXT_X_COORD, this.UI_TEXT_Y_COORD);
+      text("Time: " + secondsRemaining, this.UI_TEXT_X_COORD, this.UI_TEXT_Y_COORD);
     }
   }
 }
@@ -243,6 +392,11 @@ class LevelManager {
 
     this.inLevelTransition;
     this.showCleanText;
+
+    this.timeUpCallback = () => {
+      removeEventListener("timerFinished", this.timeUpCallback);
+      end("Time up! GAME OVER");
+    }
   }
 
   // Return a vector for the position the given single line of non-scaled text would need to be drawn to be centered
@@ -256,12 +410,19 @@ class LevelManager {
     this.inLevelTransition = true;
     this.currLevel++;
 
-    squeegee.resetProperties();
     // Set a random size for the next window
-    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 40 + rndi(51), 40 + rndi(51));
+    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 50 + rndi(51), 50 + rndi(51));
+
+    squeegee.resetProperties();
+
+    windowToClean.generateDirtSpots(4 + 2 * sqrt(this.currLevel));
 
     let transitionPhase1Callback = () => {
       this.inLevelTransition = false;
+
+      // Set up timer for next level
+      timer.startCountdown((4 + 2 * sqrt(this.currLevel)) * 0.25 + 7, true);
+      addEventListener("timerFinished", this.timeUpCallback);
 
       removeEventListener("timerFinished", transitionPhase1Callback);
     }
@@ -272,6 +433,7 @@ class LevelManager {
 
   showCleanTextThenTransition() {
     this.showCleanText = true;
+    removeEventListener("timerFinished", this.timeUpCallback);
 
     let cleanTextFinishedCallback = () => {
       this.showCleanText = false;
@@ -297,6 +459,10 @@ class LevelManager {
     }
     else if (this.showCleanText) {
       text("Clean!", this.getCenteredTextLineCoords("Clean!"), {color: "blue"});
+    }
+    else if (windowToClean.dirtArray.length == 0) {
+      timer.stop();
+      this.showCleanTextThenTransition();
     }
   }
 }
