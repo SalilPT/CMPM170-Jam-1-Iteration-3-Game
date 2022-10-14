@@ -5,7 +5,33 @@ description = `
 [Hold] Wipe faster
 `;
 
-characters = []; // TODO: Make sprites for dirt spots
+characters = [
+`
+ ll
+ lllll
+ lllllll
+ llll
+lllll
+`,`
+  ll
+ ll
+lll
+lllll
+llll
+ll
+`,`
+ll
+ lll
+
+ll
+ lllll
+ll
+`,`
+lllllllll
+`
+]; // TODO: Make sprites for dirt spots
+
+const dirt_sprites = ["a", "b", "c"];
 
 // Game constants
 const G = {
@@ -48,6 +74,14 @@ class WindowToClean {
   // Generates dirt spots
   // Only called during level transitions
   generateDirtSpots() {
+
+    let spots = Math.floor(Math.random() * (5 - 1) + 1);
+    for (let i = 0; i < spots; i++) {
+      let x = Math.floor(Math.random() * (85 - 34) + 34);
+      let y = Math.floor(Math.random() * (85 - 34) + 34);
+      let sprite = Math.floor(Math.random() * 3)
+      char(dirt_sprites[sprite], x, y);
+    }
 
   }
 
@@ -121,6 +155,7 @@ class WindowToClean {
       }
     }
     color("black");
+    this.generateDirtSpots();
   }
 }
 
@@ -141,6 +176,10 @@ class Squeegee {
     this.movVector; // Movement vector
     this.oscPt1; // Oscillation point 1
     this.oscPt2; // Oscillation point 2
+
+    this.pos = vec(34, 25);
+    this.speed = 1;
+    this.direction = 1;
   }
 
   resetProperties() {
@@ -151,6 +190,14 @@ class Squeegee {
 
   // TODO: Implement this
   update() {
+
+    if (input.isJustPressed || (this.pos.x < 34 && this.direction < 0) || (this.pos.x > 90 && this.direction > 0) ) {
+        this.direction *= -1;
+    }
+
+    this.pos.x += this.direction * sqrt(difficulty);
+    color("blue");
+    char("d", this.pos);
 
   }
 }
