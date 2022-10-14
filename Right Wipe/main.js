@@ -178,6 +178,7 @@ class WindowToClean {
       if (dirtCollision.isColliding.rect[squeegee.WIPER_COLOR]) {
         dirtToRemove.push(dirt);
         addScore(this.DIRT_SPRITE_POINTS[dirt.sprite], dirt.x, dirt.y);
+        play("coin");
       }
     }
     // Clean up any dirt that collided with the squeegee
@@ -395,6 +396,7 @@ class LevelManager {
 
     this.timeUpCallback = () => {
       removeEventListener("timerFinished", this.timeUpCallback);
+      play("explosion");
       end("Time up! GAME OVER");
     }
   }
@@ -463,6 +465,7 @@ class LevelManager {
     else if (windowToClean.dirtArray.length == 0) {
       timer.stop();
       this.showCleanTextThenTransition();
+      play("powerup");
     }
   }
 }
