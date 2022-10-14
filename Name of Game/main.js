@@ -379,7 +379,7 @@ class CountdownTimer {
     // Draw text indicating time left
     if (this.displayUIText) {
       let secondsRemaining = floor((this.totalCountdownTicks - this.ticksSinceTimerStart) / 60);
-      text("T " + secondsRemaining, this.UI_TEXT_X_COORD, this.UI_TEXT_Y_COORD);
+      text("Time: " + secondsRemaining, this.UI_TEXT_X_COORD, this.UI_TEXT_Y_COORD);
     }
   }
 }
@@ -392,6 +392,11 @@ class LevelManager {
 
     this.inLevelTransition;
     this.showCleanText;
+
+    this.timeUpCallback = () => {
+      removeEventListener("timerFinished", this.timeUpCallback);
+      end("Time up! GAME OVER");
+    }
   }
 
   // Return a vector for the position the given single line of non-scaled text would need to be drawn to be centered
@@ -415,6 +420,10 @@ class LevelManager {
     let transitionPhase1Callback = () => {
       this.inLevelTransition = false;
 
+      // Set up timer for next level
+      timer.startCountdown((4 + 2 * sqrt(this.currLevel)) * 0.25 + 7, true);
+      addEventListener("timerFinished", this.timeUpCallback);
+
       removeEventListener("timerFinished", transitionPhase1Callback);
     }
 
@@ -424,6 +433,7 @@ class LevelManager {
 
   showCleanTextThenTransition() {
     this.showCleanText = true;
+    removeEventListener("timerFinished", this.timeUpCallback);
 
     let cleanTextFinishedCallback = () => {
       this.showCleanText = false;
