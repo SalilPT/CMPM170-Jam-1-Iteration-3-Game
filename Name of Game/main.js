@@ -27,7 +27,8 @@ ll
  lllll
 ll
 `,`
-lllllllll
+lllllllllllllllll
+lllllllllllllllll
 `
 ]; // TODO: Make sprites for dirt spots
 
@@ -191,8 +192,8 @@ class Squeegee {
   // TODO: Implement this
   update() {
 
-    if (input.isJustPressed || (this.pos.x < 34 && this.direction < 0) || (this.pos.x > 90 && this.direction > 0) ) {
-        this.direction *= -1;
+    if ( (this.pos.x < 34 && this.direction < 0) || (this.pos.x > 90 && this.direction > 0) ) {
+      this.direction *= -1;
     }
 
     this.pos.x += this.direction * sqrt(difficulty);
