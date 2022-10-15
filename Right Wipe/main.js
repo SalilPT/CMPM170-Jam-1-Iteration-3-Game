@@ -28,8 +28,7 @@ l ll
   ll
  l   l
   ` // smol splatter
-
-]; // TODO: Make sprites for dirt spots
+];
 
 // Game constants
 const G = {
@@ -239,7 +238,6 @@ class Squeegee {
     this.sideAtStartOfWipe = this.DEFAULT_SIDE;
   }
 
-  // TODO: Implement this
   update() {
     // Update movement vector
     if (this.isWiping && input.isPressed) {
@@ -393,11 +391,14 @@ class LevelManager {
 
     this.inLevelTransition;
     this.showCleanText;
+    this.gameEnd;
 
     this.timeUpCallback = () => {
       removeEventListener("timerFinished", this.timeUpCallback);
       play("explosion");
       end("Time up! GAME OVER");
+      // Putting this here will hopefully fix a bug caused by cleaning off the last piece of dirt on the same tick that the timer finishes
+      this.gameEnd = true;
     }
   }
 
@@ -452,9 +453,15 @@ class LevelManager {
     this.currLevel = 0;
     this.inLevelTransition = false;
     this.showCleanText = false;
+    this.gameEnd = false;
   }
 
   update() {
+    // Hopefully prevent bug that occurs when the cleaning last dirt spot on the same tick that the level timer ends
+    if (this.gameEnd) {
+      return;
+    }
+
     if (this.inLevelTransition) {
       let levelText = "Level " + this.currLevel;
       text(levelText, this.getCenteredTextLineCoords(levelText));
