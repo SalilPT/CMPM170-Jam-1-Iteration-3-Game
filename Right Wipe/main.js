@@ -417,7 +417,7 @@ class LevelManager {
     this.currLevel++;
 
     // Set a random size for the next window
-    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 50 + rndi(51), 50 + rndi(51));
+    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 50 + 2 * rndi(26), 50 + 2 * rndi(26)); // Guaranteed that dimensions will only be even numbers
 
     squeegee.resetProperties();
 
@@ -427,7 +427,7 @@ class LevelManager {
       this.inLevelTransition = false;
 
       // Set up timer for next level
-      timer.startCountdown((4 + 2 * sqrt(this.currLevel)) * 0.25 + 7, true);
+      timer.startCountdown(8 * pow(2, -0.075 * this.currLevel) + 9.5, true); // Approaches 9.5 seconds, but doesn't go lower
       addEventListener("timerFinished", this.timeUpCallback);
 
       removeEventListener("timerFinished", transitionPhase1Callback);
