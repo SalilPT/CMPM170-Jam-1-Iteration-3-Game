@@ -80,11 +80,14 @@ class WindowToClean {
   generateDirtSpots(numSpots) {
     this.dirtArray = [];
     let minDistFromSide = 6;
-    // I don't know why, but this seems to almost never place dirt in the lower-right quadrant.
-    // TODO?: Fix this
+
+    let leftXBound = this.centerX - (this.width / 2) + minDistFromSide;
+    let rightXBound = this.centerX + (this.width / 2) - minDistFromSide;
+    let topYBound = this.centerY - (this.height / 2) + minDistFromSide;
+    let bottomYBound = this.centerY + (this.height / 2) - minDistFromSide;
     for (let i = 0; i < numSpots; i++) {
-      let xCoord = rndi(this.centerX - (this.width / 2) + minDistFromSide, this.width - minDistFromSide);
-      let yCoord = rndi(this.centerY - (this.height / 2) + minDistFromSide, this.height - minDistFromSide);
+      let xCoord = rndi(leftXBound, rightXBound);
+      let yCoord = rndi(topYBound, bottomYBound);
       let randomSprite = Object.keys(this.DIRT_SPRITE_POINTS)[rndi(Object.keys(this.DIRT_SPRITE_POINTS).length)];
 
       this.dirtArray.push({
