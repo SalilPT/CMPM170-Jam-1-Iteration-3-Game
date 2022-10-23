@@ -7,15 +7,15 @@ description = `
 
 characters = [
   `
-  l l 
-l ll  
+  l l
+l ll
  llll
   llll
  lllll
 l ll
   `, // big splatter
   `
-  l   
+  l
   ll l
  llll
   lll
@@ -228,10 +228,14 @@ class Squeegee {
     this.sideAtStartOfWipe;
   }
 
+  getSpeedForCurrentLevel() {
+    return this.DEFAULT_SPEED + Math.min(levelMgr.currLevel / 100, 1);
+  }
+
   resetProperties() {
     [this.oscPt1, this.oscPt2] = windowToClean.getSideBounds(this.DEFAULT_SIDE);
     // Flip order of y coordinate subtraction here because y value is 0 at top of screen
-    this.movVector = vec(Math.sign(this.oscPt2.x - this.oscPt1.x), Math.sign(this.oscPt1.y - this.oscPt2.y)).mul(this.DEFAULT_SPEED);
+    this.movVector = vec(Math.sign(this.oscPt2.x - this.oscPt1.x), Math.sign(this.oscPt1.y - this.oscPt2.y)).mul(this.getSpeedForCurrentLevel());
     this.x = abs(this.oscPt1.x + this.oscPt2.x) / 2;
     this.y = abs(this.oscPt1.y + this.oscPt2.y) / 2;
 
@@ -298,7 +302,7 @@ class Squeegee {
       color(this.WIPER_COLOR);
       wiperCollision = bar(this.x, this.y, this.WIPER_LENGTH, this.WIPER_THICKNESS, this.movVector.angle + PI / 2);
     }
-    
+
     windowToClean.updateDirtSpots();
 
     // Check if this collided with a side
@@ -315,7 +319,7 @@ class Squeegee {
             this.y = sideBound1.y;
           }
 
-          this.movVector = vec(Math.sign(sideBound1.x - sideBound2.x), Math.sign(sideBound1.y - sideBound2.y)).mul(this.DEFAULT_SPEED);
+          this.movVector = vec(Math.sign(sideBound1.x - sideBound2.x), Math.sign(sideBound1.y - sideBound2.y)).mul(this.getSpeedForCurrentLevel());
           this.currentSide = side;
           this.isWiping = false;
           this.wipeSpeed = this.DEFAULT_WIPE_SPEED;
@@ -417,17 +421,19 @@ class LevelManager {
     this.currLevel++;
 
     // Set a random size for the next window
-    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 50 + 2 * rndi(26), 50 + 2 * rndi(26)); // Guaranteed that dimensions will only be even numbers
+    // Note: rndi() never rolls the high integer passed to it
+    let randomSideLengthLowerBound = Math.min(floor(this.currLevel / 5), 24); // Maxes out at level 125
+    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 50 + 2 * rndi(randomSideLengthLowerBound, 26), 50 + 2 * rndi(randomSideLengthLowerBound, 26)); // Guaranteed that dimensions will only be even numbers
 
     squeegee.resetProperties();
 
-    windowToClean.generateDirtSpots(4 + 2 * sqrt(this.currLevel));
+    windowToClean.generateDirtSpots(Math.min(floor(4 + 3 * sqrt(this.currLevel)), 75));
 
     let transitionPhase1Callback = () => {
       this.inLevelTransition = false;
 
       // Set up timer for next level
-      timer.startCountdown(8 * pow(2, -0.075 * this.currLevel) + 9.5, true); // Approaches 9.5 seconds, but doesn't go lower
+      timer.startCountdown(8 * pow(2, -0.075 * (this.currLevel + 6)) + 11, true); // Approaches 11 seconds, but doesn't go lower
       addEventListener("timerFinished", this.timeUpCallback);
 
       removeEventListener("timerFinished", transitionPhase1Callback);
