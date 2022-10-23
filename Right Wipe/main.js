@@ -410,9 +410,10 @@ class LevelManager {
   }
 
   // Return a vector for the position the given single line of non-scaled text would need to be drawn to be centered
-  getCenteredTextLineCoords(text) {
-    let textX = 3 + (G.WIDTH - text.length * 6)/2;
-    let textY = G.HEIGHT / 2 - 3;
+  // For textScale, it's assumed that the x and y values for the text scaling are equal
+  getCenteredTextLineCoords(text, textScale = 1, yOffset = 0) {
+    let textX = 3 * textScale + (G.WIDTH - text.length * 6 * textScale) / 2;
+    let textY = G.HEIGHT / 2 + yOffset;
     return vec(textX, textY);
   }
 
@@ -473,10 +474,13 @@ class LevelManager {
 
     if (this.inLevelTransition) {
       let levelText = "Level " + this.currLevel;
-      text(levelText, this.getCenteredTextLineCoords(levelText));
+      text(levelText, this.getCenteredTextLineCoords(levelText, 2), {scale: {x: 2, y: 2}}, -3);
     }
     else if (this.showCleanText) {
-      text("Clean!", this.getCenteredTextLineCoords("Clean!"), {color: "blue"});
+      text("Clean!", this.getCenteredTextLineCoords("Clean!", 2, -3), {
+        color: "blue",
+        scale: {x: 2, y: 2}
+      });
     }
     else if (windowToClean.dirtArray.length == 0) {
       timer.stop();
@@ -493,7 +497,7 @@ let levelMgr = new LevelManager();
 
 function update() {
   if (!ticks) {
-    windowToClean.setProperties(G.WIDTH/2, G.HEIGHT/2, 60, 60);
+    windowToClean.setProperties(G.WIDTH / 2, G.HEIGHT / 2, 60, 60);
     squeegee.resetProperties();
     timer.resetProperties();
     levelMgr.resetProperties();
