@@ -40,8 +40,9 @@ const G = {
 };
 
 options = {
-  viewSize: {x: G.WIDTH, y: G.HEIGHT},
-  isPlayingBgm: true
+  isDrawingScoreFront: true,
+  isPlayingBgm: true,
+  viewSize: {x: G.WIDTH, y: G.HEIGHT}
 };
 
 class WindowToClean {
